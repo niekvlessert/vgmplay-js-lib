@@ -1,0 +1,3 @@
+[submodule "vgmplay"]
+	path = vgmplay
+	url = https://github.com/vgmrips/vgmplay.git
