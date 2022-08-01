@@ -1,0 +1,86 @@
+<html>
+<body>
+<script src="build/vgmplay-js.js"></script>
+
+  <button id="button-start">load</button>
+  <button id="button-start-2">play</button>
+
+<script>
+
+	document.getElementById("button-start").addEventListener('click', () => { init(); });
+	document.getElementById("button-start-2").addEventListener('click', () => { play(); });
+
+	function init() {
+		window.AudioContext = window.AudioContext||window.webkitAudioContext;
+		context = new AudioContext();
+		destination = context.destination;
+		sampleRate = context.sampleRate;
+		node = context.createScriptProcessor(16384, 2, 2);
+
+		VGMPlay_Init = Module.cwrap('VGMPlay_Init');
+		VGMPlay_Init2 = Module.cwrap('VGMPlay_Init2');
+		FillBuffer = Module.cwrap('FillBuffer2','number',['number','number']);
+		OpenVGMFile = Module.cwrap('OpenVGMFile','number',['string']);
+		CloseVGMFile = Module.cwrap('CloseVGMFile');
+		PlayVGM = Module.cwrap('PlayVGM');
+		StopVGM = Module.cwrap('StopVGM');
+		VGMEnded = Module.cwrap('VGMEnded');
+		GetTrackLength = Module.cwrap('GetTrackLength');
+		GetLoopPoint = Module.cwrap('GetLoopPoint');
+		SeekVGM = Module.cwrap('SeekVGM','number',['number','number']);
+		SetSampleRate = Module.cwrap('SetSampleRate','number',['number']);
+		SetLoopCount = Module.cwrap('SetLoopCount','number',['number']);
+		SamplePlayback2VGM = Module.cwrap('SamplePlayback2VGM','number',['number']);
+		ShowTitle = Module.cwrap('ShowTitle','string');
+
+		dataPtrs = [];
+		dataPtrs[0] = Module._malloc(16384*2);
+		dataPtrs[1] = Module._malloc(16384*2);
+
+		dataHeaps = [];
+		dataHeaps[0] = new Int16Array(Module.HEAPU8.buffer, dataPtrs[0], 16384);
+		dataHeaps[1] = new Int16Array(Module.HEAPU8.buffer, dataPtrs[1], 16384);
+
+		buffers = [];
+		buffers[0] = [];
+		buffers[1] = [];
+
+		results = [];
+
+		VGMPlay_Init();
+		SetSampleRate(sampleRate);
+		//if (loopCount) SetLoopCount(loopCount); else loopCount = 2;
+		VGMPlay_Init2();
+	}
+
+	function generateBuffer() {
+                FillBuffer(dataHeaps[0].byteOffset, dataHeaps[1].byteOffset);
+
+                results[0] = new Int16Array(dataHeaps[0].buffer, dataHeaps[0].byteOffset, 16384);
+                results[1] = new Int16Array(dataHeaps[1].buffer, dataHeaps[1].byteOffset, 16384);
+
+                for (var i = 0; i < 16384; i++) {
+                        buffers[0][i] = results[0][i] / 32768;
+                        buffers[1][i] = results[1][i] / 32768;
+                }
+	}
+
+	function play() {
+		OpenVGMFile("1.vgz");
+		node.connect(context.destination);
+		PlayVGM();
+		node.onaudioprocess = function (e) {
+			output0 = e.outputBuffer.getChannelData(0);
+			output1 = e.outputBuffer.getChannelData(1);
+			for (var i = 0; i < 16384; i++) {
+				output0[i] = buffers[0][i];
+				output1[i] = buffers[1][i];
+			}
+			generateBuffer();
+		};
+        }
+
+</script>
+
+</body>
+</html>
